@@ -9,31 +9,47 @@ from websockets import connect, exceptions
 from loguru import logger
 
 class GrassBot:
-    def __init__(self, user_id, username, proxy=None):
+    def __init__(self, user_id, username, proxy=None, device_type="extension", ping_min=18, ping_max=25):
         self.user_id = user_id
         self.username = username
         self.proxy = proxy
+        self.device_type = device_type.lower()
+        self.ping_min = ping_min
+        self.ping_max = ping_max
         
-        # Device info
         self.browser_id = str(uuid.uuid3(uuid.NAMESPACE_DNS, user_id + (proxy or "")))
         self.device_id = str(uuid.uuid4())
         
-        # User agent - randomize untuk setiap akun
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
-        ]
         import random
-        self.user_agent = random.choice(user_agents)
         
-        # State
+        if self.device_type == "mobile":
+            mobile_user_agents = [
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/119.0.6045.169 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.144 Mobile Safari/537.36",
+                "Mozilla/5.0 (Linux; Android 13; Pixel 7 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (Linux; Android 14; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
+            ]
+            self.user_agent = random.choice(mobile_user_agents)
+            logger.warning(f"[{self.username}] 📱 Mode: MOBILE (3.00x) - Pastikan pakai mobile proxy!")
+        else:
+            desktop_user_agents = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+            ]
+            self.user_agent = random.choice(desktop_user_agents)
+            self.device_type = "extension"
+            logger.info(f"[{self.username}] 💻 Mode: EXTENSION (2.00x) - Aman & stabil")
+        
         self.connected = False
         self.retry_count = 0
         self.ping_count = 0
         self.start_time = datetime.now()
+        self.rate_limit_count = 0
         
     async def checkin(self):
         """Get WebSocket URL with token"""
@@ -50,7 +66,7 @@ class GrassBot:
                 "version": "4.26.2",
                 "extensionId": "lkbnfiajjmbhnfledhphioinpickokdi",
                 "userAgent": self.user_agent,
-                "deviceType": "extension"
+                "deviceType": self.device_type
             }
             
             connector = aiohttp.TCPConnector(ssl=False)
@@ -68,10 +84,18 @@ class GrassBot:
                             token = result['token']
                             ws_url = f'wss://{url_ip}/?token={token}'
                             logger.success(f"[{self.username}] ✅ Checkin OK")
+                            self.rate_limit_count = 0
                             return ws_url
                         except Exception as e:
                             logger.error(f"[{self.username}] Parse error: {e}")
                             return None
+                    elif response.status == 429:
+                        self.rate_limit_count += 1
+                        wait_time = min(300, 60 * self.rate_limit_count)
+                        logger.error(f"[{self.username}] ⛔ Rate limited (429) - attempt #{self.rate_limit_count}")
+                        logger.warning(f"[{self.username}] ⏳ Waiting {wait_time}s before retry...")
+                        await asyncio.sleep(wait_time)
+                        return None
                     else:
                         text = await response.text()
                         logger.error(f"[{self.username}] Checkin failed ({response.status}): {text[:100]}")
@@ -81,7 +105,8 @@ class GrassBot:
             return None
     
     async def send_ping(self, websocket):
-        """Send ping to keep alive"""
+        """Send ping to keep alive with random interval"""
+        import random
         while self.connected:
             try:
                 ping = {
@@ -92,8 +117,10 @@ class GrassBot:
                 }
                 await websocket.send(json.dumps(ping))
                 self.ping_count += 1
-                logger.info(f"[{self.username}] 📡 Ping #{self.ping_count}")
-                await asyncio.sleep(20)
+                
+                next_ping = random.uniform(self.ping_min, self.ping_max)
+                logger.info(f"[{self.username}] 📡 Ping #{self.ping_count} (next in {next_ping:.1f}s)")
+                await asyncio.sleep(next_ping)
             except:
                 break
     
@@ -115,7 +142,7 @@ class GrassBot:
                 "user_id": self.user_id,
                 "user_agent": self.user_agent,
                 "timestamp": int(time.time()),
-                "device_type": "extension",
+                "device_type": self.device_type,
                 "version": "4.26.2",
                 "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
             }
@@ -156,8 +183,14 @@ class GrassBot:
                 ws_url = await self.checkin()
                 
                 if not ws_url:
-                    logger.error(f"[{self.username}] ❌ Checkin failed")
-                    await asyncio.sleep(30)
+                    if self.rate_limit_count > 0:
+                        wait = min(600, 120 * self.rate_limit_count)
+                        logger.error(f"[{self.username}] ❌ Checkin failed - Rate limited")
+                        logger.info(f"[{self.username}] 💤 Sleeping {wait}s to cool down...")
+                    else:
+                        wait = 30
+                        logger.error(f"[{self.username}] ❌ Checkin failed")
+                    await asyncio.sleep(wait)
                     continue
                 
                 logger.info(f"[{self.username}] 🔄 Connecting...")
@@ -203,16 +236,33 @@ class GrassBot:
         await self.connect_to_grass()
 
 
-async def run_bots(accounts):
+async def run_bots(accounts, settings=None):
     """Run multiple accounts"""
+    import random
     tasks = []
-    for acc in accounts:
+    
+    ping_min = 18
+    ping_max = 25
+    
+    if settings:
+        ping_min = settings.get('ping_interval_min', 18)
+        ping_max = settings.get('ping_interval_max', 25)
+    
+    for idx, acc in enumerate(accounts):
         bot = GrassBot(
             user_id=acc['user_id'],
             username=acc['username'],
-            proxy=acc.get('proxy')
+            proxy=acc.get('proxy'),
+            device_type=acc.get('device_type', 'extension'),
+            ping_min=ping_min,
+            ping_max=ping_max
         )
         tasks.append(bot.start())
+        
+        if idx < len(accounts) - 1:
+            stagger_delay = random.uniform(2, 5)
+            logger.info(f"⏳ Stagger delay: {stagger_delay:.1f}s before next account...")
+            await asyncio.sleep(stagger_delay)
     
     await asyncio.gather(*tasks)
 
@@ -254,9 +304,8 @@ def main():
     logger.info("=" * 70)
     logger.info("🌱 GRASS BOT - Multi Account + Proxy")
     logger.info(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info("=" * 70)
+    logger.info("="* 70)
     
-    # Load config
     config = load_config()
     accounts = config.get('accounts', [])
     
@@ -264,7 +313,6 @@ def main():
         logger.error("❌ No accounts found in config.json!")
         exit(1)
     
-    # Validate accounts
     valid_accounts = []
     for acc in accounts:
         if not acc.get('user_id') or acc['user_id'] == "YOUR_USER_ID_HERE":
@@ -279,7 +327,6 @@ def main():
     
     logger.info(f"📊 Total accounts: {len(valid_accounts)}")
     
-    # Show proxy info
     with_proxy = [a for a in valid_accounts if a.get('proxy')]
     without_proxy = [a for a in valid_accounts if not a.get('proxy')]
     
@@ -291,8 +338,14 @@ def main():
     
     logger.info("")
     
+    settings = config.get('settings', {})
+    ping_min = settings.get('ping_interval_min', 18)
+    ping_max = settings.get('ping_interval_max', 25)
+    logger.info(f"⏱️  Ping interval: {ping_min}-{ping_max} seconds (randomized)")
+    logger.info("")
+    
     try:
-        asyncio.run(run_bots(valid_accounts))
+        asyncio.run(run_bots(valid_accounts, settings))
     except KeyboardInterrupt:
         logger.info("\n⏹️ Stopped by user")
 

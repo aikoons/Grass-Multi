@@ -4,11 +4,13 @@
       "user_id": "939afaf8-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       "username": "Account_1",
       "proxy": null,
-      "country": "ID"
+      "country": "ID",
+      "device_type": "extension"
     }
   ],
   "settings": {
-    "ping_interval": 20,
+    "ping_interval_min": 18,
+    "ping_interval_max": 25,
     "reconnect_delay": 30,
     "max_reconnect_delay": 120,
     "default_country": "ID"

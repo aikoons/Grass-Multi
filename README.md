@@ -33,14 +33,29 @@ Buat file `config.json` dengan isi seperti ini:
       "user_id": "GANTI-DENGAN-USER-ID-KAMU",
       "username": "Akun_1",
       "proxy": null,
-      "country": "ID"
+      "country": "ID",
+      "device_type": "extension"
     }
   ],
   "settings": {
+    "ping_interval_min": 18,
+    "ping_interval_max": 25,
+    "reconnect_delay": 30,
+    "max_reconnect_delay": 120,
     "default_country": "ID"
   }
 }
 ```
+
+**Penjelasan Config:**
+- `user_id`: User ID dari akun Grass kamu (lihat cara dapat di bawah)
+- `username`: Nama identifier untuk log (bebas)
+- `proxy`: Proxy address atau `null` (format: `http://user:pass@ip:port`)
+- `country`: Kode negara proxy (ID=Indonesia, US=Amerika, dll)
+- `device_type`: `"extension"` (2.00x) atau `"mobile"` (3.00x)
+- `ping_interval_min`: Ping minimal dalam detik (default: 18)
+- `ping_interval_max`: Ping maksimal dalam detik (default: 25)
+- `reconnect_delay`: Delay reconnect saat disconnect (detik)
 
 **Ganti `GANTI-DENGAN-USER-ID-KAMU`** dengan User ID kamu (lihat cara dapat User ID di bawah).
 
@@ -99,6 +114,52 @@ python3 grass_multi.py
 5. Program: `python.exe`
 6. Arguments: `grass_multi.py`
 7. Start in: `D:\APLIKASI\Grass` (sesuaikan dengan folder bot)
+
+### ⚙️ Konfigurasi Ping Interval (Anti-Detection)
+
+Bot menggunakan **random ping interval** untuk menghindari deteksi sebagai bot:
+
+#### Default Setting (Recommended):
+```json
+"settings": {
+  "ping_interval_min": 18,  
+  "ping_interval_max": 25   
+}
+```
+
+**Behavior:**
+- Ping #1: tunggu 21.3 detik ⏱️
+- Ping #2: tunggu 19.7 detik ⏱️
+- Ping #3: tunggu 24.1 detik ⏱️
+- **Random setiap ping = lebih natural!** ✅
+
+#### Opsi Lainnya:
+
+**Conservative (Paling Aman):**
+```json
+"ping_interval_min": 20,
+"ping_interval_max": 30
+```
+- Lebih lambat tapi sangat aman
+- Cocok untuk long-term farming
+
+**Balanced (Recommended):**
+```json
+"ping_interval_min": 18,
+"ping_interval_max": 25
+```
+- Sweet spot antara speed & safety
+- Default setting
+
+**Aggressive (Medium Risk):**
+```json
+"ping_interval_min": 15,
+"ping_interval_max": 22
+```
+- Lebih cepat tapi risiko deteksi naik
+- Hanya untuk experienced users
+
+**⚠️ JANGAN pakai interval < 15 detik!** Risiko banned sangat tinggi!
 
 ### ⚠️ Troubleshooting
 
@@ -290,19 +351,58 @@ Format: http://user:pass@id.iproyal.com:port
 ### 6. **Strategi Multiple Accounts:**
 
 **Pemula (1-3 akun):**
+```json
+{
+  "accounts": [
+    {"user_id": "user-1", "username": "Akun_1", "proxy": null, "country": "ID", "device_type": "extension"},
+    {"user_id": "user-2", "username": "Akun_2", "proxy": null, "country": "ID", "device_type": "extension"}
+  ],
+  "settings": {
+    "ping_interval_min": 18,
+    "ping_interval_max": 25,
+    "default_country": "ID"
+  }
+}
+```
 - Gunakan VPN berkualitas dari negara yang sama
 - Atau 1 residential proxy dengan session rotation
 
 **Advanced (5-10 akun):**
+```json
+{
+  "accounts": [
+    {"user_id": "user-1", "proxy": "http://user:pass@proxy1.com:8080", "country": "ID", "device_type": "extension"},
+    {"user_id": "user-2", "proxy": "http://user:pass@proxy2.com:8080", "country": "ID", "device_type": "extension"},
+    {"user_id": "user-3", "proxy": "http://user:pass@proxy3.com:8080", "country": "ID", "device_type": "extension"}
+  ],
+  "settings": {
+    "ping_interval_min": 18,
+    "ping_interval_max": 25
+  }
+}
+```
 - 1 residential proxy per akun
 - Semua dari negara yang sama
 - Buat akun dengan jarak waktu (1-2 hari per akun)
 
-**Pro (10+ akun):**
+**Pro (10+ akun) - Mix Device Type:**
+```json
+{
+  "accounts": [
+    {"user_id": "user-1", "proxy": "residential-1", "country": "ID", "device_type": "extension"},
+    {"user_id": "user-2", "proxy": "residential-2", "country": "ID", "device_type": "extension"},
+    {"user_id": "user-3", "proxy": "4g-mobile-1", "country": "ID", "device_type": "mobile"}
+  ],
+  "settings": {
+    "ping_interval_min": 20,
+    "ping_interval_max": 30
+  }
+}
+```
 - Dedicated residential proxy per akun
 - Mix provider (jangan semua dari 1 provider)
-- Rotate session setiap 30-60 menit
-- Monitor suspicious activity
+- Mobile device type hanya dengan mobile proxy!
+- Conservative ping interval untuk safety
 
 ### 7. **Budget Estimation:**
 
