@@ -1,0 +1,41 @@
+# PROXY LIST - Auto-Rotating Proxy Configuration
+# Format: protocol://username:password@ip:port
+# Supported protocols: http, https, socks5
+# One proxy per line
+
+# ============================================
+# CONTOH FORMAT PROXY:
+# ============================================
+
+# HTTP Proxy dengan authentication:
+# http://username:password@proxy1.example.com:8080
+# http://user123:pass456@192.168.1.100:3128
+
+# SOCKS5 Proxy:
+# socks5://username:password@proxy2.example.com:1080
+
+# HTTP Proxy tanpa authentication:
+# http://proxy3.example.com:8080
+
+# ============================================
+# ISI PROXY ANDA DI BAWAH INI:
+# ============================================
+
+# Proxy 1
+# http://username:password@proxy1.com:8080
+
+# Proxy 2
+# http://username:password@proxy2.com:8080
+
+# Proxy 3
+# socks5://username:password@proxy3.com:1080
+
+# ============================================
+# TIPS:
+# ============================================
+# 1. Gunakan residential proxy untuk hasil terbaik
+# 2. Pastikan semua proxy dari negara yang sama (misalnya ID/Indonesia)
+# 3. Minimal 3-5 proxy untuk rotasi yang efektif
+# 4. Script akan otomatis rotate ke proxy lain jika ada error
+# 5. Proxy dengan success rate tinggi akan diprioritaskan
+# 6. Hapus tanda # di depan baris proxy untuk mengaktifkannya

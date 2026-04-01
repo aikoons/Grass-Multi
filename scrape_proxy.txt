@@ -1,0 +1,2 @@
+use scraper proxy from https://github.com/monosans/proxy-scraper-checker
+ganti directory di grassauto.sh 

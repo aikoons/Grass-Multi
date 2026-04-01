@@ -11,6 +11,8 @@
   "settings": {
     "ping_interval_min": 18,
     "ping_interval_max": 25,
+      "use_proxy_rotation": true,
+    "proxy_file": "proxy.txt",
     "reconnect_delay": 30,
     "max_reconnect_delay": 120,
     "default_country": "ID"
